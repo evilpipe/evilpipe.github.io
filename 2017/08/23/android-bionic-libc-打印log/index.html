@@ -94,7 +94,7 @@
 <p>可以看到起过程先用mknod在dev下创建一个/dev/__kmsg__的字符设备，而后打开它获取文件描述符klog_fd，再将这个设备删除，需要写日志的时候只需将日志内容写入klog_fd中即可。</p>
 <h3 id="在bionic中打印日志"><a href="#在bionic中打印日志" class="headerlink" title="在bionic中打印日志"></a>在bionic中打印日志</h3><p>&nbsp;&nbsp;&nbsp;&nbsp;参考init进程中打印日志的实现，我们可以在需要打印日志的库函数中定义如下宏：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">#define klog(...) &#123; \</div><div class="line">    int kfd = open(&quot;/dev/kmsg&quot;,O_RDWR); \</div><div class="line">    if ( kfd &gt; 0 )&#123; \</div><div class="line">        char buf[512]; \</div><div class="line">        sprintf(buf,__VA_ARGS__); \</div><div class="line">        write(kfd,buf,strlen(buf)); \</div><div class="line">        close(kfd); \</div><div class="line">    &#125; \</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>&nbsp;&nbsp;&nbsp;&nbsp;确保&lt;unistd.h&gt; &lt;sys/types.h&gt; &lt;sys/stat.h&gt;三个头文件引入。在需要输入日志的地方，直接插入<code>klog(&quot;something output&quot;);</code>即可。<br><a href="https://www.kernel.org/doc/Documentation/ABI/testing/dev-kmsg" title="kernel.org" target="_blank" rel="external">kmsg说明</a></p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;确保&lt;unistd.h&gt; &lt;sys/types.h&gt; &lt;sys/stat.h&gt;三个头文件引入。在需要输入日志的地方，直接插入<code>klog(&quot;something output&quot;);</code>即可。使用过程中要注意<code>/dev/kmsg</code>设备的权限。<br><a href="https://www.kernel.org/doc/Documentation/ABI/testing/dev-kmsg" title="kernel.org" target="_blank" rel="external">kmsg说明</a></p>
 
       
     </div>
