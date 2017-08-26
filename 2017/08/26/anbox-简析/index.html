@@ -1,0 +1,144 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>anbox 简析 | 杂记 | bomb(){bomb|bomb&amp;};bomb</title>
+
+  
+  <meta name="author" content="ckh">
+  
+
+  
+  <meta name="description" content="anbox项目简介&amp;emsp;&amp;emsp;anbox是一个国外开源的容器化运行android的实现，官网地址为anbox，基于lxc和android 7.1.1构建，其运行视频可在官网查看（需翻墙），目前官方支持的系统为Ubuntu 16.04，比其更早的Ubuntu版本官方说法为可能可以运行，未测试，其余linux发行版官方未支持。项目目前还在演进开发中，目前（2017年08月26日）的版本已在binder驱动中加入了namespace的支持。据官网信息，UBport和LuneOS（前openWebOS）项目有意将其引入，以实现对android app的支持。">
+  
+
+  
+  
+  <meta name="keywords" content="anbox,android">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="anbox 简析"/>
+
+  <meta property="og:site_name" content="杂记"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="杂记" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">杂记</a>
+    </h1>
+    <p class="site-description">bomb(){bomb|bomb&amp;};bomb</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+        <li><a href="/about">关于</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>anbox 简析</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2017/08/26/anbox-简析/" rel="bookmark">
+        <time class="entry-date published" datetime="2017-08-26T04:50:39.000Z">
+          2017-08-26
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="anbox项目简介"><a href="#anbox项目简介" class="headerlink" title="anbox项目简介"></a>anbox项目简介</h2><p>&emsp;&emsp;anbox是一个国外开源的容器化运行android的实现，官网地址为<a href="anbox.io" title="anbox">anbox</a>，基于lxc和android 7.1.1构建，其运行视频可在官网查看（需翻墙），目前官方支持的系统为Ubuntu 16.04，比其更早的Ubuntu版本官方说法为可能可以运行，未测试，其余linux发行版官方未支持。项目目前还在演进开发中，目前（2017年08月26日）的版本已在binder驱动中加入了namespace的支持。据官网信息，UBport和LuneOS（前openWebOS）项目有意将其引入，以实现对android app的支持。</p>
+<a id="more"></a>
+<h2 id="实现简介"><a href="#实现简介" class="headerlink" title="实现简介"></a>实现简介</h2><p>　　其实现思路可以概括为给当前为当前linux系统加载binder和ashmen驱动，通过网络将显示模块及传感器等设备的数据与容器外的模拟模块交互，实现显示及传感器的模拟器，本质上可以视为一个基于容器的一个android模拟器。该项目所使用的外设模拟代码，多数基于Google的android emulator源码，根据项目需要对android emulator的源码进行提取及二次开发。</p>
+<h3 id="qemu-pipe模拟"><a href="#qemu-pipe模拟" class="headerlink" title="qemu_pipe模拟"></a>qemu_pipe模拟</h3><p>　　在Google的android emulator中，qemu_pipe是一个虚拟设备，用于guest os（即模拟器内的android系统）和host os的通讯，在anbox中，利用守护进行创建一个Unix域套接字，将域套接字的文件链接到dev目录下并将链接名字改为qemu_pipe来替代模拟器中的qemu_pipe设备。在anbox使用的android源码中，对hadrware中的qemu_pipe设备操作的代码中，增加了域套接字的支持。可参考其在系统源码中的实现，对应文件为<code>libhardware/include/hardware/qemu_pipe.h</code>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">#if 0</div><div class="line">    fd = open(&quot;/dev/qemu_pipe&quot;, O_RDWR);</div><div class="line">#else</div><div class="line">    fd = socket(AF_LOCAL, SOCK_STREAM, 0);</div><div class="line"></div><div class="line">    struct sockaddr_un addr;</div><div class="line">    memset(&amp;addr, 0, sizeof(addr));</div><div class="line">    addr.sun_family = AF_UNIX;</div><div class="line">    strncpy(addr.sun_path, &quot;/dev/qemu_pipe&quot;, sizeof(addr.sun_path));</div><div class="line"></div><div class="line">    if (connect(fd, (struct sockaddr*) &amp;addr, sizeof(addr)) &lt; 0) &#123;</div><div class="line">#if !defined(QEMU_PIPE_FROM_ADB)</div><div class="line">        close(fd);</div><div class="line">#else</div><div class="line">        // Adb renames &apos;close&apos; to &apos;unix_close&apos; and marks the original</div><div class="line">        // &apos;close&apos; as not available.</div><div class="line">        unix_close(fd);</div><div class="line">#endif</div><div class="line">        fd = -1;</div><div class="line">    &#125;</div><div class="line">#endif</div></pre></td></tr></table></figure>
+<p>通过这部分源码，可见其将/dev/qemu_pipe设备文件的打开操作屏蔽，并改为打开一个路径为/dev/qemu_pipe的Unix域套接字，后续对qemu_pipe操作的源码基本无更改。</p>
+<h3 id="opengl-es模拟"><a href="#opengl-es模拟" class="headerlink" title="opengl es模拟"></a>opengl es模拟</h3><p>　　android系统内沿用Google的实现，在anbox 容器外，移植android emulator中OpenGL ES的实现。其主要结构是一个C/S结构，android系统内的OpenGL ES库作为client端将OpenGL ES调用利用protobuf传递到anbox容器外的server端完成渲染及显示，并将调用结果反馈给client，具体可参考android emulator的OpenGL ES实现。</p>
+<h3 id="qemud及传感器设备模拟"><a href="#qemud及传感器设备模拟" class="headerlink" title="qemud及传感器设备模拟"></a>qemud及传感器设备模拟</h3><p>　　在android emulator中，qemud设备是基于qemu_pipe实现的，在anbox中，qemud同为Unix域套接字，实现类似上文的qemu_pipe实现。在android模拟器中，模拟的传感器设备数据传输是通过/dev/qemud进行的，anbox中，沿用此策略，因此其传感器模拟的实现代码均无需进一步更改。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/anbox/">anbox</a><a href="/tags/android/">android</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2017 ckh
+    
+  </p>
+  <p class="site-info">
+    <script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+  </p>
+</footer>
+
+    
+  </div>
+</div>
+</body>
+</html>
