@@ -1,0 +1,147 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>macOS 10.13.3编译anbox的Android镜像 | 杂记 | bomb(){bomb|bomb&amp;};bomb</title>
+
+  
+  <meta name="author" content="ckh">
+  
+
+  
+  <meta name="description" content="根据source.adnroid.com上的文档初始化Android编译环境，ports可用homebrew代替。安装后按一下步骤调整。
+安装xcode 7从官网下载xcode 7安装包，拖进系统的application文件夹，重命名为xcode7（也可不重命名）；选择xcode7作为源码编译工具
+1sudo xcode-select -s /Applications/Xcode7.app/">
+  
+
+  
+  
+  <meta name="keywords" content="anbox,android,macOS,系统编译">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="macOS 10.13.3编译anbox的Android镜像"/>
+
+  <meta property="og:site_name" content="杂记"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="杂记" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">杂记</a>
+    </h1>
+    <p class="site-description">bomb(){bomb|bomb&amp;};bomb</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+        <li><a href="/about">关于</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>macOS 10.13.3编译anbox的Android镜像</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/02/06/macOS-10-13-3编译anbox的Android镜像/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-02-06T12:29:13.000Z">
+          2018-02-06
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>根据<a href="source.android.com">source.adnroid.com</a>上的文档初始化Android编译环境，ports可用homebrew代替。安装后按一下步骤调整。</p>
+<h3 id="安装xcode-7"><a href="#安装xcode-7" class="headerlink" title="安装xcode 7"></a>安装xcode 7</h3><p>从官网下载xcode 7安装包，拖进系统的application文件夹，重命名为xcode7（也可不重命名）；<br>选择xcode7作为源码编译工具</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">sudo xcode-select -s /Applications/Xcode7.app/</div></pre></td></tr></table></figure>
+<a id="more"></a>
+<h3 id="下载源码"><a href="#下载源码" class="headerlink" title="下载源码"></a>下载源码</h3><p>repo init 初始化源码下载配置后，编辑 <strong>.repo/manifest.xml</strong> 文件，将其中注释掉的macos系统下prebuilts工具链取消注释，同步源码。</p>
+<h3 id="修改anbox源码中prebuilts中的bison"><a href="#修改anbox源码中prebuilts中的bison" class="headerlink" title="修改anbox源码中prebuilts中的bison"></a>修改anbox源码中prebuilts中的bison</h3><p>编译过程中，bison会出现问题，具体看这个讨论<a href="https://groups.google.com/forum/#!topic/android-building/D1-c5lZ9Oco" target="_blank" rel="external">build aosp on Mac OS 10.13 failed</a>，修复步骤如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">external/bison</div><div class="line">git cherry-pick c0c852bd6fe462b148475476d9124fd740eba160</div><div class="line">mm</div><div class="line">cd $(TOP)</div><div class="line">cp out/host/darwin-x86/bin/bison prebuilts/misc/darwin-x86/bison/</div></pre></td></tr></table></figure>
+<h3 id="修改jack的内存配置"><a href="#修改jack的内存配置" class="headerlink" title="修改jack的内存配置"></a>修改jack的内存配置</h3><p>如果系统内存大于等于16g可以不修改，否则建议修改如下文件 <strong>prebuilts/sdk/tools/jack-admin</strong> 以免编译过程中jack出现OOM的错误，增加内存使用参数 <strong>-Xmx$(half_memory)m</strong> 如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">JACK_SERVER_COMMAND=&quot;java -XX:MaxJavaStackTraceDepth=-1 -Djava.io.tmpdir=$TMPDIR $JACK_SERVER_VM_ARGUMENTS -Xmx4000m -cp $LAUNCHER_JAR $LAUNCHER_NAME&quot;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/anbox/">anbox</a><a href="/tags/android/">android</a><a href="/tags/macOS/">macOS</a><a href="/tags/系统编译/">系统编译</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2018 ckh
+    
+  </p>
+  <p class="site-info">
+    <script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+  </p>
+</footer>
+
+    
+  </div>
+</div>
+</body>
+</html>
